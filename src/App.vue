@@ -5,6 +5,7 @@
       <div class="text-center">
         <h1 class="text-2xl font-bold mb-1">🎮 原神每日任務</h1>
         <p class="text-gray-400">{{ today }}</p>
+        <p class="text-sm text-amber-400 mt-1">⏳ 距離每日重置還有 {{ countdown }}</p>
       </div>
 
       <!-- 今日素材 -->
@@ -64,6 +65,7 @@ const tasks = ref([]);
 const todayMaterials = computed(() => {
   return DOMAIN_MATERIALS[todayDate.value.getDay()];
 });
+const countdown = ref("");
 
 const defaultTasks = () => {
   const m = todayMaterials.value;
@@ -82,13 +84,36 @@ const updateMaterialTask = () => {
   const index = tasks.value.findIndex((t) => t.text.startsWith("刷素材"));
   if (index !== -1) tasks.value[index].text = text;
 };
+const calcNextResetTime = () => {
+  const now = new Date();
+  const next = new Date(now);
 
-onMounted(() => {
-  storage.value = JSON.parse(localStorage.getItem("genshin-calendar") || "{}");
-  tasks.value = storage.value[today] || defaultTasks();
-  updateMaterialTask();
-});
+  next.setHours(GAME_RESET_HOUR, 0, 0, 0);
 
+  // 如果現在已經過 4:00，目標改成明天 4:00
+  if (now >= next) {
+    next.setDate(next.getDate() + 1);
+  }
+
+  return next;
+};
+const updateCountdown = () => {
+  const now = new Date();
+  const nextReset = calcNextResetTime();
+  const diff = nextReset - now;
+
+  if (diff <= 0) {
+    countdown.value = "00:00:00";
+    return;
+  }
+
+  const totalSeconds = Math.floor(diff / 1000);
+  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+  const s = String(totalSeconds % 60).padStart(2, "0");
+
+  countdown.value = `${h}:${m}:${s}`;
+};
 onMounted(() => {
   calcGameDate();
 
@@ -102,7 +127,7 @@ onMounted(() => {
 watch(
   tasks,
   () => {
-    storage.value[today] = tasks.value;
+    storage.value[today.value] = tasks.value;
     localStorage.setItem("genshin-calendar", JSON.stringify(storage.value));
   },
   { deep: true }
@@ -133,15 +158,19 @@ const clearToday = () => {
 let timer = null;
 
 const startAutoRefresh = () => {
+  updateCountdown();
+
   timer = setInterval(() => {
     const oldDay = today.value;
-    calcGameDate();
 
-    // 換日了
+    calcGameDate();
+    updateCountdown();
+
+    // 4:00 換日
     if (today.value !== oldDay) {
       tasks.value = storage.value[today.value] || defaultTasks();
       updateMaterialTask();
     }
-  }, 60 * 1000); // 每分鐘檢查一次就夠
+  }, 1000); // 每秒更新倒數
 };
 </script>
