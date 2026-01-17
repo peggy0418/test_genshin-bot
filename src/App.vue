@@ -36,12 +36,34 @@ const DOMAIN_MATERIALS = {
   0: { talent: "全部天賦書開放", weapon: "全部武器素材開放" },
 };
 
-const todayDate = new Date();
-const today = todayDate.toISOString().slice(0, 10);
+const GAME_RESET_HOUR = 4;
+const gameDate = ref(new Date());
+
+const calcGameDate = () => {
+  const now = new Date();
+  const d = new Date(now);
+
+  if (now.getHours() < GAME_RESET_HOUR) {
+    d.setDate(d.getDate() - 1);
+  }
+
+  gameDate.value = d;
+};
+
+const todayDate = computed(() => gameDate.value);
+const formatLocalDate = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+const today = computed(() => formatLocalDate(todayDate.value));
 const storage = ref({});
 const tasks = ref([]);
 
-const todayMaterials = computed(() => DOMAIN_MATERIALS[new Date().getDay()]);
+const todayMaterials = computed(() => {
+  return DOMAIN_MATERIALS[todayDate.value.getDay()];
+});
 
 const defaultTasks = () => {
   const m = todayMaterials.value;
@@ -67,6 +89,16 @@ onMounted(() => {
   updateMaterialTask();
 });
 
+onMounted(() => {
+  calcGameDate();
+
+  storage.value = JSON.parse(localStorage.getItem("genshin-calendar") || "{}");
+  tasks.value = storage.value[today.value] || defaultTasks();
+  updateMaterialTask();
+
+  startAutoRefresh();
+});
+
 watch(
   tasks,
   () => {
@@ -77,16 +109,18 @@ watch(
 );
 
 const weekDays = computed(() => {
-  const start = new Date(todayDate);
+  const start = new Date(todayDate.value);
   start.setDate(start.getDate() - start.getDay());
+
   return Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
-    const date = d.toISOString().slice(0, 10);
+    const date = formatLocalDate(d);
+
     return {
       label: ["日", "一", "二", "三", "四", "五", "六"][i],
       date,
-      isToday: date === today,
+      isToday: date === today.value,
       doneTasks: (storage.value[date] || []).filter((t) => t.done),
     };
   });
@@ -94,5 +128,20 @@ const weekDays = computed(() => {
 
 const clearToday = () => {
   tasks.value = defaultTasks();
+};
+
+let timer = null;
+
+const startAutoRefresh = () => {
+  timer = setInterval(() => {
+    const oldDay = today.value;
+    calcGameDate();
+
+    // 換日了
+    if (today.value !== oldDay) {
+      tasks.value = storage.value[today.value] || defaultTasks();
+      updateMaterialTask();
+    }
+  }, 60 * 1000); // 每分鐘檢查一次就夠
 };
 </script>
