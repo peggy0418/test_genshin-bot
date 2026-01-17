@@ -46,7 +46,7 @@ const todayMaterials = computed(() => DOMAIN_MATERIALS[new Date().getDay()]);
 const defaultTasks = () => {
   const m = todayMaterials.value;
   return [
-    "每日委託（4 次）",
+    "每日委託（4 次）/ 消耗體力120體",
     "領取每日獎勵",
     "消耗原粹樹脂",
     "派遣角色",
