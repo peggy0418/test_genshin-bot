@@ -106,7 +106,7 @@ const updateCountdown = () => {
     countdown.value = "00:00:00";
     return;
   }
-
+  
   const totalSeconds = Math.floor(diff / 1000);
   const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
   const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
@@ -116,6 +116,19 @@ const updateCountdown = () => {
 };
 onMounted(() => {
   calcGameDate();
+
+  // 讀取每週起始日
+  const savedWeekStart = localStorage.getItem("genshin-week-start");
+
+  const currentWeekStart = calcWeekStart();
+
+  if (savedWeekStart !== currentWeekStart) {
+    // 代表進入新的一週（只會在週一 4:00 發生）
+    localStorage.setItem("genshin-week-start", currentWeekStart);
+    weekStartDate.value = currentWeekStart;
+  } else {
+    weekStartDate.value = savedWeekStart;
+  }
 
   storage.value = JSON.parse(localStorage.getItem("genshin-calendar") || "{}");
   tasks.value = storage.value[today.value] || defaultTasks();
@@ -132,10 +145,18 @@ watch(
   },
   { deep: true }
 );
+const calcWeekStart = () => {
+  const d = new Date(gameDate.value);
 
+  // 回到本週星期日
+  d.setDate(d.getDate() - d.getDay());
+
+  return formatLocalDate(d);
+};
 const weekDays = computed(() => {
-  const start = new Date(todayDate.value);
-  start.setDate(start.getDate() - start.getDay());
+  if (!weekStartDate.value) return [];
+
+  const start = new Date(weekStartDate.value);
 
   return Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(start);
@@ -170,6 +191,13 @@ const startAutoRefresh = () => {
     if (today.value !== oldDay) {
       tasks.value = storage.value[today.value] || defaultTasks();
       updateMaterialTask();
+
+      // 檢查是否進入新的一週
+      const newWeekStart = calcWeekStart();
+      if (newWeekStart !== weekStartDate.value) {
+        weekStartDate.value = newWeekStart;
+        localStorage.setItem("genshin-week-start", newWeekStart);
+      }
     }
   }, 1000); // 每秒更新倒數
 };
