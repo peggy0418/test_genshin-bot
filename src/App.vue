@@ -39,6 +39,7 @@ const DOMAIN_MATERIALS = {
 
 const GAME_RESET_HOUR = 4;
 const gameDate = ref(new Date());
+const weekStartDate = ref("");
 
 const calcGameDate = () => {
   const now = new Date();
@@ -106,7 +107,7 @@ const updateCountdown = () => {
     countdown.value = "00:00:00";
     return;
   }
-  
+
   const totalSeconds = Math.floor(diff / 1000);
   const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
   const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
